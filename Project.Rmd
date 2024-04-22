@@ -1,0 +1,86 @@
+---
+title: "STAT 5125 Final Project"
+author: "Josh Moak and Owen Fiore"
+date: "2024-04-22"
+output: html_document
+---
+
+In this project we seek to explore patterns and identify trends in a dataset
+consisting of 10,000 car insurance claims available at [the link here](https://www.kaggle.com/datasets/sagnik1511/car-insurance-data). You can also find the data available in the repo at `Car_Insurance_Claim.csv`.
+
+# Data Import
+```{r}
+df <- read.csv("Car_Insurance_Claim.csv")
+df
+```
+We read in the data and we see that some data is character, some is numeric, and some is stored in a dbl. 
+```{}
+Regex: AGE, driving experience, vehicle year
+```
+
+# Data Cleaning
+### Impute missing values
+The first thing we are going to do is deal with missing data.
+```{r}
+library(tidyverse)
+library(visdat)
+df |> vis_dat()
+```
+Here we see that we have a lot of data of type character which will likely need to be changed.  However what we see is we only have 2 columns with missing data which is good.
+```{r}
+df |> vis_miss()
+```
+```{r}
+df |> miss_var_summary()
+```
+
+Lets impute missing values based on the median of the column
+```{r}
+library(naniar)
+df <- df |>
+  nabular(only_miss = TRUE) |>
+  mutate(CREDIT_SCORE = naniar::impute_median(CREDIT_SCORE),
+         ANNUAL_MILEAGE = naniar::impute_median(ANNUAL_MILEAGE))
+```
+
+```{r}
+df |> n_miss()
+```
+### Regular Expression 
+We see there are no longer any missing values.  We are now ready to use regular expression to alter and extract the meaningful string data.  We have 3 columns of interest for this part: `AGE`, `Driving_Experince`, and `VEHICLE_YEAR`
+```{r}
+df |> select(AGE) |> slice_head(n = 10)
+```
+Using this and our knowledge of who drives cars, we know that all the information we need is going to be contained in the first two integers as somebody who is less than 10 years old cannot drive and anybody who would be 100 is grouped into 65+. Thus we need a regular expression to keep only the first 2 numbers.
+
+```{r}
+df <- df |>
+  mutate(AGE = as.integer(stringr::str_extract(AGE, "^\\d{1,2}")))
+df |> select(AGE) |> slice_head(n = 10)
+```
+This looks much better and is something that can be converted to a factor variable later on.
+
+```{r}
+df |> select(DRIVING_EXPERIENCE) |> slice_head(n = 10)
+```
+Lets use the `parse_number` function from the `readr` package to extract the first number available.
+```{r}
+df <- df |>
+  mutate(DRIVING_EXPERIENCE = parse_number(DRIVING_EXPERIENCE))
+df |> select(DRIVING_EXPERIENCE) |> slice_head(n = 10)
+```
+This looks much better.
+
+Lastly we look at `VEHICLE_YEAR`.
+```{r}
+df |> select(VEHICLE_YEAR) |> slice_head(n = 10)
+```
+There seem to be only two types of data in this column: `before 2015` and `after 2015`. We are going to make this easier for us later on and convert this data to numeric.
+```{r}
+df <- df |>
+  mutate(VEHICLE_YEAR = ifelse(grepl("^before", VEHICLE_YEAR),0,1))
+df |> select(VEHICLE_YEAR) |> slice_head(n = 10)
+```
+We have now replaced this data with 0s and 1s.
+
+We have now used regular expression and string functions to clean our data. Now lets convert appropriate columns to factor variables.
