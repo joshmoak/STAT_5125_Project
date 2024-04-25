@@ -42,7 +42,8 @@ library(naniar)
 df <- df |>
   nabular(only_miss = TRUE) |>
   mutate(CREDIT_SCORE = naniar::impute_median(CREDIT_SCORE),
-         ANNUAL_MILEAGE = naniar::impute_median(ANNUAL_MILEAGE))
+         ANNUAL_MILEAGE = naniar::impute_median(ANNUAL_MILEAGE)) |>
+  select(-CREDIT_SCORE_NA, -ANNUAL_MILEAGE_NA)
 ```
 
 ```{r}
@@ -86,7 +87,65 @@ df |> select(VEHICLE_YEAR) |> slice_head(n = 10)
 ```
 We have now replaced this data with 0s and 1s.
 
-We have now used regular expression and string functions to clean our data. Now lets convert appropriate columns to factor variables.
+We have now used regular expression and string functions to clean our data. Now lets convert appropriate columns to factor variables.  The following columns need to be changed: `AGE`, `GENDER`, `RACE`, `DRIVING EXPERIENCE`, `EDUCATION`, `INCOME`, `VEHICLE_OWNERSHIP`, `VEHICLE YEAR`, `MARRIED`, `CHILDREN`, `VEHICHLE_TYPE`
+```{r}
+df <- df |>
+  mutate(AGE = ifelse(AGE == 16, 0, ifelse(AGE == 26, 1, ifelse(AGE == 40, 2, 3)))) |>
+  mutate(AGE = factor(AGE))
+
+df <- df |>
+  mutate(GENDER = ifelse(GENDER == "female", 0, 1)) |>
+  mutate(GENDER = factor(GENDER))
+
+df <- df |>
+  mutate(RACE = ifelse(RACE == "minority", 0, 1)) |>
+  mutate(RACE = factor(RACE))
+
+df <- df |>
+  mutate(DRIVING_EXPERIENCE = as.integer(str_extract(as.character(DRIVING_EXPERIENCE), "\\d"))) |>
+  mutate(DRIVING_EXPERIENCE = factor(DRIVING_EXPERIENCE))
+
+
+df <- df |>
+  mutate(EDUCATION = ifelse(EDUCATION == "none", 0, ifelse(EDUCATION == "high school", 1, 2))) |>
+  mutate(EDUCATION = factor(EDUCATION))
+
+df <- df |>
+  mutate(INCOME = ifelse(INCOME == "poverty", 0, ifelse(INCOME == "working class", 1, ifelse(INCOME == "middle class", 2, 3)))) |>
+  mutate(INCOME = factor(INCOME))
+
+df <- df |>
+  mutate(VEHICLE_OWNERSHIP = factor(VEHICLE_OWNERSHIP))
+
+df <- df |>
+  mutate(VEHICLE_YEAR = factor(VEHICLE_YEAR))
+
+df <- df |>
+  mutate(MARRIED = factor(MARRIED))
+
+df <- df |>
+  mutate(CHILDREN = factor(CHILDREN))
+
+df <- df |>
+  mutate(VEHICLE_TYPE = ifelse(VEHICLE_TYPE == "sedan", 0, 1)) |>
+  mutate(VEHICLE_TYPE = factor(VEHICLE_TYPE))
+
+df <- df |>
+  mutate(SPEEDING_VIOLATIONS = factor(SPEEDING_VIOLATIONS))
+
+df <- df |>
+  mutate(DUIS = factor(DUIS))
+
+df <- df |>
+  mutate(PAST_ACCIDENTS = factor(PAST_ACCIDENTS))
+glimpse(df)
+```
+
+```{r}
+df |>
+  count(AGE, name = "count") |>
+  arrange(desc(count))
+```
 
 
 
