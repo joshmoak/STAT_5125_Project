@@ -13,6 +13,7 @@ consisting of 10,000 car insurance claims available at [the link here](https://w
 df <- read.csv("Car_Insurance_Claim.csv")
 df
 ```
+
 We read in the data and we see that some data is character, some is numeric, and some is stored in a dbl. 
 ```{}
 Regex: AGE, driving experience, vehicle year
@@ -86,3 +87,91 @@ df |> select(VEHICLE_YEAR) |> slice_head(n = 10)
 We have now replaced this data with 0s and 1s.
 
 We have now used regular expression and string functions to clean our data. Now lets convert appropriate columns to factor variables.
+
+
+
+
+## These are some super quick and messy models. I didn't do a train test split or anytning. I just wwanted to get some graphics for the presentation...
+
+```{r}
+# 
+df$OUTCOME <- as.factor(df$OUTCOME)
+df[2:19] # This is all the predictors + outcome
+
+```
+```{r}
+library(tidymodels)
+library(tidyverse)
+recipe_1 <- recipe(OUTCOME ~ .,
+                   data = df[2:19])
+
+recipe_1 <- recipe_1 |>
+  step_dummy(all_nominal_predictors()) |>
+  step_normalize()
+
+parsnip_1 <- logistic_reg(penalty = 0.0) |> 
+  set_engine("glmnet") |> 
+  set_mode("classification") 
+
+
+workflow_1 <- workflow()
+
+workflow_1 <- workflow_1 |>
+  add_model(parsnip_1) |>
+  add_recipe(recipe_1)
+
+fit_1 <- workflow_1 |>
+  fit(df[2:19])
+
+preds_1 <- fit_1 |>
+  predict(df[2:19], type = "class") |>
+  pull(.pred_class)
+
+confusion_mat = as.matrix(table(Actual_Values = df$OUTCOME, Predicted_Values = preds_1)) 
+print(confusion_mat)
+
+sum(preds_1 == df$OUTCOME) / length(df$OUTCOME)
+```
+
+
+```{r}
+
+
+
+
+recipe_1 <- recipe(OUTCOME ~ .,
+                   data = df[2:19])
+
+recipe_1 <- recipe_1 |>
+  step_dummy(all_nominal_predictors()) |>
+  step_normalize()
+
+parsnip_2 <- rand_forest() |> 
+  set_engine("ranger") |> 
+  set_mode("classification")
+
+
+workflow_2 <- workflow()
+
+workflow_2 <- workflow_2 |>
+  add_model(parsnip_2) |>
+  add_recipe(recipe_1)
+
+fit_2 <- workflow_2 |>
+  fit(df[2:19])
+
+preds_2 <- fit_2 |>
+  predict(df[2:19], type = "class") |>
+  pull(.pred_class)
+
+confusion_mat = as.matrix(table(Actual_Values = df$OUTCOME, Predicted_Values = preds_2)) 
+print(confusion_mat)
+
+sum(preds_2 == df$OUTCOME) / length(df$OUTCOME)
+```
+```{r}
+ggplot(df, aes(x = OUTCOME)) +
+  geom_bar(fill = "steelblue") +
+  labs(x = "OUTCOME", y = "Count", title = "Count of Rows for Each Class")
+```
+
