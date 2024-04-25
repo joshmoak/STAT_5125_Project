@@ -31,6 +31,7 @@ Here we see that we have a lot of data of type character which will likely need 
 df |> vis_miss()
 ```
 ```{r}
+library(naniar)
 df |> miss_var_summary()
 ```
 
@@ -77,8 +78,9 @@ df |> select(VEHICLE_YEAR) |> slice_head(n = 10)
 ```
 There seem to be only two types of data in this column: `before 2015` and `after 2015`. We are going to make this easier for us later on and convert this data to numeric.
 ```{r}
+library(stringr)
 df <- df |>
-  mutate(VEHICLE_YEAR = ifelse(grepl("^before", VEHICLE_YEAR),0,1))
+  mutate(VEHICLE_YEAR = ifelse(str_detect(VEHICLE_YEAR, "^before"),0,1))
 df |> select(VEHICLE_YEAR) |> slice_head(n = 10)
 ```
 We have now replaced this data with 0s and 1s.
