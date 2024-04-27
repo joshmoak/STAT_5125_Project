@@ -127,6 +127,9 @@ df <- df |>
   mutate(CHILDREN = factor(CHILDREN))
 
 df <- df |>
+  mutate(ANNUAL_MILEAGE = factor(ANNUAL_MILEAGE))
+
+df <- df |>
   mutate(VEHICLE_TYPE = ifelse(VEHICLE_TYPE == "sedan", 0, 1)) |>
   mutate(VEHICLE_TYPE = factor(VEHICLE_TYPE))
 
@@ -140,17 +143,81 @@ df <- df |>
   mutate(PAST_ACCIDENTS = factor(PAST_ACCIDENTS))
 glimpse(df)
 ```
-
 ```{r}
-df |>
-  count(AGE, name = "count") |>
-  arrange(desc(count))
+write.csv(df, "factor_data.csv", row.names = FALSE)
 ```
 
 
+```{r}
+#df |>
+  #count(AGE, name = "count") |>
+  #arrange(desc(count))
+```
 
 
-## These are some super quick and messy models. I didn't do a train test split or anytning. I just wwanted to get some graphics for the presentation...
+# Data Exploration
+Now that we have a clean dataset, we are ready to visualize our data to explore any trends and possibly verify any assumptions that we need for later on.  First however we are going to run a PCA to look at what variables are contributing the most to variance in the data.
+
+
+## PCA
+```{r}
+df <- read.csv("factor_data.csv")
+pca <- df |>
+  select(!c(ID, OUTCOME)) |>
+  prcomp(scale = TRUE)
+```
+
+Lets look at the principal component directions
+```{r}
+pca$rotation
+```
+This is hard to understand as there is simply too many numbers. We can use the `tidy` function to make this cleaner.
+```{r}
+library(broom)
+rot_matrix <- pca |> tidy(matrix = "rotation")
+pc1 <- rot_matrix |>
+  filter(PC == 1) |>
+  arrange(desc(abs(value)))
+
+pc1
+```
+Prinicipal Component 1 is the direction with the most variance and the variables with the largest value are the largest contributors to this principal component direction.  We see that `AGE`, `INCOME`, and `DRIVING EXPERIENCE` are all very important to preserving variance in the data. Lets visualize the first 3 principal component directions and what variables are making up each direction.
+
+```{r}
+pca |>
+  tidy(matrix = "loadings") |>
+  filter(PC < 4) |>
+  ggplot(aes (y = column, x = value)) +
+  geom_col(aes(y = column)) + 
+  labs(x = "Loadings", y = "Variable") +
+  facet_wrap(~PC)
+```
+Here are some observations from the above graphic:
++ `VEHICHLE_YEAR`, `PAST_ACCIDENTS`, `INCOME`, `DRIVING_EXPERIENCE` seem to be important features
++ `VEHICHLE_TYPE`, `RACE`, `POSTAL CODE` do not seem to be important variables
++ `AGE` matters a lot in the first direction but not so much in the other directions
++ `ANNUAL_MILEAGE` is a massive contributor to principal component direction 3
++ `EDUCATION` and `INCOME` vary together indicating they are highly correlated.
+
+Now we see how important each principal component direction is.
+
+```{r}
+pca |>
+  tidy(matrix = "pcs") |>
+  ggplot(aes(x = factor(PC), y = percent)) +
+  geom_col() +
+  labs(y = "Percent variance explained", x = "Principal Component")
+```
+Theres a lot of principal components so it may be easier to view this data in a table.
+```{r}
+pca |>
+  tidy(matrix = "pcs") |>
+  filter(cumulative < .90)
+```
+If we wanted to retain 90% of the variance in the data, we see that we would need the first 12 principal component directions.
+
+
+## These are some super quick and messy models. I didn't do a train test split or anything. I just wwanted to get some graphics for the presentation...
 
 ```{r}
 # 
