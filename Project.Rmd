@@ -24,6 +24,7 @@ Regex: AGE, driving experience, vehicle year
 The first thing we are going to do is deal with missing data.
 ```{r}
 library(tidyverse)
+library(tidymodels)
 library(visdat)
 df |> vis_dat()
 ```
@@ -48,6 +49,7 @@ df <- df |>
 
 ```{r}
 df |> n_miss()
+
 ```
 ### Regular Expression 
 We see there are no longer any missing values.  We are now ready to use regular expression to alter and extract the meaningful string data.  We have 3 columns of interest for this part: `AGE`, `Driving_Experince`, and `VEHICLE_YEAR`
@@ -159,6 +161,7 @@ write.csv(df, "factor_data.csv", row.names = FALSE)
 Now that we have a clean dataset, we are ready to visualize our data to explore any trends and possibly verify any assumptions that we need for later on.  First however we are going to run a PCA to look at what variables are contributing the most to variance in the data.
 
 
+
 ## PCA
 ```{r}
 df <- read.csv("factor_data.csv")
@@ -220,23 +223,44 @@ If we wanted to retain 90% of the variance in the data, we see that we would nee
 ## These are some super quick and messy models. I didn't do a train test split or anything. I just wwanted to get some graphics for the presentation...
 
 ```{r}
-# 
-df$OUTCOME <- as.factor(df$OUTCOME)
-df[2:19] # This is all the predictors + outcome
+df <- read.csv("factor_data.csv")
+factor_cols <- c("AGE", "GENDER", "RACE", "DRIVING_EXPERIENCE",
+                 "EDUCATION", "INCOME", "VEHICLE_OWNERSHIP",
+                 "VEHICLE_YEAR", "MARRIED", "CHILDREN", "POSTAL_CODE",
+                 "VEHICLE_TYPE", "SPEEDING_VIOLATIONS", "DUIS",
+                 "PAST_ACCIDENTS", "OUTCOME")
+df[factor_cols] <- lapply(df[factor_cols], factor)
 
+df <- df[2:19] # This is all the predictors + outcome
+df
+```
+Now that our data is clean and each column is the correct data type, let's create some sub samples of our data. 
+```{r}
+set.seed(1)
+ttsplit <- df |>
+  initial_split(prop = 0.95)
+
+ttsplit
+
+train <- ttsplit |> training()
+test <- ttsplit |> testing()
 ```
 ```{r}
-library(tidymodels)
-library(tidyverse)
+table(train$OUTCOME)[1] / nrow(train)
+table(test$OUTCOME)[1] / nrow(test)
+```
+The proportions within each split is roughly equal in terms of the `OUTCOME` variable. 
+
+```{r}
 recipe_1 <- recipe(OUTCOME ~ .,
-                   data = df[2:19])
+                   data = train)
 
 recipe_1 <- recipe_1 |>
   step_dummy(all_nominal_predictors()) |>
-  step_normalize()
+  step_normalize() 
 
-parsnip_1 <- logistic_reg(penalty = 0.0) |> 
-  set_engine("glmnet") |> 
+parsnip_1 <- logistic_reg() |> 
+  set_engine("glm") |> 
   set_mode("classification") 
 
 
@@ -247,32 +271,24 @@ workflow_1 <- workflow_1 |>
   add_recipe(recipe_1)
 
 fit_1 <- workflow_1 |>
-  fit(df[2:19])
+  fit(train)
 
 preds_1 <- fit_1 |>
-  predict(df[2:19], type = "class") |>
+  predict(test, type = "class") |>
   pull(.pred_class)
 
-confusion_mat = as.matrix(table(Actual_Values = df$OUTCOME, Predicted_Values = preds_1)) 
+preds_1_prob <- fit_1 |>
+  predict(test, type = "prob")
+
+confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values = preds_1)) 
 print(confusion_mat)
 
-sum(preds_1 == df$OUTCOME) / length(df$OUTCOME)
 ```
 
 
 ```{r}
-
-
-
-
-recipe_1 <- recipe(OUTCOME ~ .,
-                   data = df[2:19])
-
-recipe_1 <- recipe_1 |>
-  step_dummy(all_nominal_predictors()) |>
-  step_normalize()
-
-parsnip_2 <- rand_forest() |> 
+set.seed(1)
+parsnip_2 <- rand_forest(mtry = 15, trees = 30) |> 
   set_engine("ranger") |> 
   set_mode("classification")
 
@@ -284,20 +300,166 @@ workflow_2 <- workflow_2 |>
   add_recipe(recipe_1)
 
 fit_2 <- workflow_2 |>
-  fit(df[2:19])
+  fit(train)
 
 preds_2 <- fit_2 |>
-  predict(df[2:19], type = "class") |>
+  predict(test, type = "class") |>
   pull(.pred_class)
 
-confusion_mat = as.matrix(table(Actual_Values = df$OUTCOME, Predicted_Values = preds_2)) 
+preds_2_prob <- fit_2 |>
+  predict(test, type = "prob")
+
+confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values = preds_2)) 
 print(confusion_mat)
 
-sum(preds_2 == df$OUTCOME) / length(df$OUTCOME)
 ```
+
 ```{r}
-ggplot(df, aes(x = OUTCOME)) +
-  geom_bar(fill = "steelblue") +
-  labs(x = "OUTCOME", y = "Count", title = "Count of Rows for Each Class")
+parsnip_3 <- svm_rbf() |>
+  set_engine("kernlab") |>
+  set_mode("classification")
+
+workflow_3 <- workflow()
+
+workflow_3 <- workflow_3 |>
+  add_model(parsnip_3) |>
+  add_recipe(recipe_1)
+
+fit_3 <- workflow_3 |>
+  fit(train)
+
+preds_3 <- fit_3 |>
+  predict(test, type = "class") |>
+  pull(.pred_class)
+
+preds_3_prob <- fit_3 |>
+  predict(test, type = "prob")
+
+confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values = preds_3)) 
+print(confusion_mat)
+
+
 ```
+
+```{r}
+parsnip_4 <- boost_tree(trees = 10, learn_rate = 0.4,
+                        tree_depth = 6) |>
+  set_engine("xgboost") |>
+  set_mode("classification")
+
+workflow_4 <- workflow()
+
+workflow_4 <- workflow_4 |>
+  add_model(parsnip_4) |>
+  add_recipe(recipe_1)
+
+fit_4 <- workflow_4 |>
+  fit(train)
+
+preds_4 <- fit_4 |>
+  predict(test, type = "class") |>
+  pull(.pred_class)
+
+preds_4_prob <- fit_4 |>
+  predict(test, type = "prob")
+
+confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values = preds_4)) 
+print(confusion_mat)
+
+```
+
+```{r}
+parsnip_5 <- nearest_neighbor(neighbors = 17) |>
+  set_engine("kknn") |>
+  set_mode("classification")
+
+workflow_5 <- workflow()
+
+workflow_5 <- workflow_5 |>
+  add_model(parsnip_5) |>
+  add_recipe(recipe_1)
+
+fit_5 <- workflow_5 |>
+  fit(train)
+
+preds_5 <- fit_5 |>
+  predict(test, type = "class") |>
+  pull(.pred_class)
+
+preds_5_prob <- fit_5 |>
+  predict(test, type = "prob")
+
+confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values = preds_5)) 
+print(confusion_mat)
+
+```
+
+```{r}
+workflow_names <- c("glm", 
+                    "rf",
+                    "svm",
+                    "xgboost",
+                    "knn")
+
+preds <- list(preds_1,
+              preds_2,
+              preds_3,
+              preds_4,
+              preds_5)
+
+preds_prob <- list(preds_1_prob,
+                   preds_2_prob,
+                   preds_3_prob,
+                   preds_4_prob,
+                   preds_5_prob)
+
+truth <- list(test$OUTCOME,
+              test$OUTCOME,
+              test$OUTCOME,
+              test$OUTCOME,
+              test$OUTCOME)
+
+workflows_tbl <- tibble(work_names = workflow_names,
+                        preds = preds,
+                        preds_prob = preds_prob,
+                        truth = truth)
+
+
+```
+
+```{r}
+workflows_tbl |>
+  unnest(cols = c(preds, preds_prob, truth)) |>
+  group_by(work_names) |>
+  roc_curve(truth = truth,
+            .pred_1,
+            event_level = "second") |>
+  ggplot(aes(x = 1- specificity, 
+             y = sensitivity, 
+             color = work_names)) +
+  geom_path()
+```
+
+```{r}
+workflows_tbl |>
+  unnest(cols = c(preds, preds_prob, truth)) |>
+  group_by(work_names) |>
+  roc_auc(truth = truth,
+            .pred_1,
+            event_level = "second") |>
+  arrange(desc(.estimate))
+  
+```
+
+```{r}
+workflows_tbl |>
+  group_by(work_names) |>
+  unnest(cols = c(preds, truth)) |>
+  mutate(acc = accuracy_vec(truth, preds)) |>
+  nest(cols = c(preds,truth)) |>
+  select(c(work_names, acc)) |>
+  arrange(desc(acc))
+```
+
+
 
