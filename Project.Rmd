@@ -251,7 +251,10 @@ df |>
   scale_color_gradient(low = "red", high = "green")
 ```
 ```{r}
-
+df["AGE"] <- lapply(df["AGE"], factor)
+df |>
+  ggplot(mapping = aes(x = AGE, y = DRIVING_EXPERIENCE)) +
+  geom_jitter()
 ```
 
 
