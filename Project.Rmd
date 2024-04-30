@@ -11,7 +11,7 @@ consisting of 10,000 car insurance claims available at [the link here](https://w
 # Data Import
 ```{r}
 df <- read.csv("Car_Insurance_Claim.csv")
-df
+df |> head()
 ```
 
 We read in the data and we see that some data is character, some is numeric, and some is stored in a dbl. 
@@ -258,7 +258,7 @@ df |>
 ```
 
 
-## These are some super quick and messy models. I didn't do a train test split or anything. I just wwanted to get some graphics for the presentation...
+# Modeling 
 
 ```{r}
 df <- read.csv("factor_data.csv")
@@ -270,7 +270,7 @@ factor_cols <- c("AGE", "GENDER", "RACE", "DRIVING_EXPERIENCE",
 df[factor_cols] <- lapply(df[factor_cols], factor)
 
 df <- df[2:19] # This is all the predictors + outcome
-df
+
 ```
 Now that our data is clean and each column is the correct data type, let's create some sub samples of our data. 
 ```{r}
@@ -485,7 +485,15 @@ workflows_tbl |>
   roc_auc(truth = truth,
             .pred_1,
             event_level = "second") |>
-  arrange(desc(.estimate))
+  arrange(desc(.estimate)) |>
+  ggplot(aes(x = .estimate,
+             y = reorder(work_names, .estimate),
+             fill = work_names)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = round(.estimate,3)), hjust = 1.1) + 
+  labs(y = "Model",
+       x = "AUC Score",
+       fill = "Model")
   
 ```
 
@@ -496,8 +504,36 @@ workflows_tbl |>
   mutate(acc = accuracy_vec(truth, preds)) |>
   nest(cols = c(preds,truth)) |>
   select(c(work_names, acc)) |>
-  arrange(desc(acc))
+  arrange(desc(acc)) |>
+  ggplot(aes(x = acc,
+             y = reorder(work_names, acc),
+             fill = work_names)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = round(acc,3)), hjust = 1.1) + 
+  labs(y = "Model",
+       x = "Accuracy",
+       fill = "Model")
 ```
+
+
+Out of the 5 models chosen, we examined two criteria: AUC score and accuracy. We measured each of these criterion on a testing/holdout subset of the original dataset. Each model was trained on a separate training subset. In last place for both measures was our knn model. Our XGboost model performed second best in each criterion, while the model with the highest AUC was the GLM, and the model with the highest accuracy was the SVM. Because the difference in each measure between first and second place is so marginal, we conclude that XGboost performed best. 
+
+```{r}
+library(vip)
+fit_4 |>
+  extract_fit_parsnip() |> 
+  vip(num_features = 15)
+```
+
+According to our preferred model, `VEHICLE_OWNERSHIP` and `DRIVING_EXPERIENCE` were the most important factors influencing `OUTCOME`. 
+
+## Conclusion
+
+To summarize, our goal was to predict whether or not a given customer would file an auto insurance claim. The insurance company has an interest in maximizing profits, so knowing which customers are more likely to file claims is quite valuable. 
+
+After cleaning the data, we were left with 18 predictors, most of which were categorical variables. We proceeded with modelling. On our chosen criteria, our XGBoost model performed the best with an accuracy of 85% on a holdout dataset. We then identified the features which were most important in the model's decision making process: `VEHICLE_OWNERSHIP` and `DRIVING_EXPERIENCE`.
+
+To improve the quality of our predictions, we are interested in more detailed data. For example, the `AGE` column had 4 categories. Effectively, it lumped several age groups together. A more detailed dataset might reveal a difference between a 16 year old driver and a 24 year old driver, whereas our dataset was blind to such distinction. A history of each driver would also be a benefit of a more detailed dataset. 
 
 
 
