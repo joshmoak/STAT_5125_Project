@@ -219,6 +219,41 @@ pca |>
 ```
 If we wanted to retain 90% of the variance in the data, we see that we would need the first 12 principal component directions.
 
+## Exploratory Graphs
+Lets look at the distribution of some of the variables to see if it is normal.
+```{r}
+df <- read.csv("factor_data.csv")
+
+df |>
+  ggplot(mapping = aes(x = CREDIT_SCORE)) +
+  geom_histogram(bins = 20, fill = "khaki", color = "black")
+
+df["GENDER"] <- lapply(df["GENDER"], factor)
+df |>
+  ggplot(mapping = aes(x = CREDIT_SCORE, fill = GENDER)) +
+  geom_histogram(bins = 20)
+```
+```{r}
+df["GENDER"] <- lapply(df["GENDER"], factor)
+df |>
+  ggplot(mapping = aes(x = CREDIT_SCORE, fill = GENDER)) +
+  geom_histogram(bins = 20)
+```
+```{r}
+df |>
+  ggplot(mapping = aes(x = PAST_ACCIDENTS, y = OUTCOME, color = GENDER)) +
+  geom_jitter()
+```
+```{r}
+df |>
+  ggplot(mapping = aes(x = EDUCATION, y = INCOME, color = CREDIT_SCORE)) +
+  geom_jitter() +
+  scale_color_gradient(low = "red", high = "green")
+```
+```{r}
+
+```
+
 
 ## These are some super quick and messy models. I didn't do a train test split or anything. I just wwanted to get some graphics for the presentation...
 
