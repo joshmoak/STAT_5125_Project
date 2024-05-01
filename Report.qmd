@@ -337,6 +337,24 @@ table(test$OUTCOME)[1] / nrow(test)
 
 The proportions within each split is roughly equal in terms of the `OUTCOME` variable.
 
+
+## Custom function
+
+When analyzing the performance of each model, we're going to want to use a confusion matrix multiple times. This way, our code will be more readable. 
+
+```{r}
+conf_mat <- function(y_truth, y_hat){
+  # This function takes in the ground truth and an estimate and 
+  # returns a confusion matrix
+  tab <- table(Actual_Values = y_truth, 
+               Predicted_Values = y_hat)
+  mat <- as.matrix(tab)
+  mat
+}
+```
+
+
+
 ## Model 1
 
 First we try out a logstic regression model
@@ -370,8 +388,9 @@ preds_1 <- fit_1 |>
 preds_1_prob <- fit_1 |>
   predict(test, type = "prob")
 
-confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values = preds_1)) 
-print(confusion_mat)
+conf_mat(y_truth = test$OUTCOME,
+         y_hat = preds_1)
+
 
 ```
 
@@ -402,8 +421,8 @@ preds_2 <- fit_2 |>
 preds_2_prob <- fit_2 |>
   predict(test, type = "prob")
 
-confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values = preds_2)) 
-print(confusion_mat)
+conf_mat(y_truth = test$OUTCOME,
+         y_hat = preds_2)
 
 ```
 
@@ -432,8 +451,8 @@ preds_3 <- fit_3 |>
 preds_3_prob <- fit_3 |>
   predict(test, type = "prob")
 
-confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values = preds_3)) 
-print(confusion_mat)
+conf_mat(y_truth = test$OUTCOME,
+         y_hat = preds_3)
 
 
 ```
@@ -464,8 +483,8 @@ preds_4 <- fit_4 |>
 preds_4_prob <- fit_4 |>
   predict(test, type = "prob")
 
-confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values = preds_4)) 
-print(confusion_mat)
+conf_mat(y_truth = test$OUTCOME,
+         y_hat = preds_4)
 
 ```
 
@@ -494,12 +513,13 @@ preds_5 <- fit_5 |>
 preds_5_prob <- fit_5 |>
   predict(test, type = "prob")
 
-confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values = preds_5)) 
-print(confusion_mat)
-
+conf_mat(y_truth = test$OUTCOME,
+         y_hat = preds_5)
 ```
 
-We now have created five models and assessed how each of them did on the test data set. Let's store their values into a tibble so that we can easily visualize and analyze our results later. \## Model Assessment
+We now have created five models and assessed how each of them did on the test data set. Let's store their values into a tibble so that we can easily visualize and analyze our results later. 
+
+## Model Assessment using list columns
 
 ```{r}
 workflow_names <- c("glm", 
@@ -601,7 +621,7 @@ According to our preferred model, `VEHICLE_OWNERSHIP` and `DRIVING_EXPERIENCE` w
 
 ## Conclusion
 
-The five add ons that we chose were
+The six add ons that we chose were
 
 -   PCA
 
@@ -609,7 +629,11 @@ The five add ons that we chose were
 
 -   Clean data with regular expression
 
--    Make a github repo
+-   Make a github [repo](https://github.com/joshmoak/STAT_5125_Project)
+
+-   Custom function
+
+-   Using list columns in a data frame
 
 To summarize, our goal was to predict whether or not a given customer would file an auto insurance claim. The insurance company has an interest in maximizing profits, so knowing which customers are more likely to file claims is quite valuable.
 
