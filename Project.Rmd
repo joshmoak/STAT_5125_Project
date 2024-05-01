@@ -228,35 +228,44 @@ df |>
   ggplot(mapping = aes(x = CREDIT_SCORE)) +
   geom_histogram(bins = 20, fill = "khaki", color = "black")
 
-df["GENDER"] <- lapply(df["GENDER"], factor)
-df |>
-  ggplot(mapping = aes(x = CREDIT_SCORE, fill = GENDER)) +
-  geom_histogram(bins = 20)
+#df["GENDER"] <- lapply(df["GENDER"], factor)
+#df |>
+  #ggplot(mapping = aes(x = CREDIT_SCORE, fill = GENDER)) +
+  #geom_histogram(bins = 20)
 ```
+We see that `CREDIT_SCORE` appears to be relatively normally distributed. Now lets see if there are any differences across `GENDER`
+
 ```{r}
 df["GENDER"] <- lapply(df["GENDER"], factor)
 df |>
   ggplot(mapping = aes(x = CREDIT_SCORE, fill = GENDER)) +
   geom_histogram(bins = 20)
 ```
+We see that the credit scors are similarly distributed for both men and women.
+
 ```{r}
 df |>
   ggplot(mapping = aes(x = PAST_ACCIDENTS, y = OUTCOME, color = GENDER)) +
   geom_jitter()
 ```
+This plot contains three dimensions of data relating `OUTCOME`, `PAST_ACCIDENTS`, and `GENDER`. The red dots corresond to women and the blue dots correspond to men.  We see that there are a lot of men that have a lot of accidents.  We also see that `PAST_ACCIDENTS` corresponds strongly with `OUTCOME` and that all observations that have more than 7 accidents are all did not file a claim.  This may be due to the way the insurance company works with the company no longer accepting claims after a certain number of accidents.
+
 ```{r}
 df |>
   ggplot(mapping = aes(x = EDUCATION, y = INCOME, color = CREDIT_SCORE)) +
   geom_jitter() +
   scale_color_gradient(low = "red", high = "green")
 ```
+We visualize `INCOME`, `EDUCATION`, and CREDIT_SCORE and find see that there are
+very few individuals that have high education but low income or low education and high income, indicating that these are positively correlated with each other.  Additionally, those with high education and low income have poor credit scores, likely because they have high debt.  CREDIT_SCORE is difficult to visualize, but it seems that there are not significant changes going from left to right (EDUCATION AND CREDIT SCORE are weakly correlated) but that points on the top are more green than those at the bottom indicating that CREDIT_SCORE and INCOME are positively correlated.
+
 ```{r}
 df["AGE"] <- lapply(df["AGE"], factor)
 df |>
   ggplot(mapping = aes(x = AGE, y = DRIVING_EXPERIENCE)) +
   geom_jitter()
 ```
-
+As the density of the points along the diagonal are significantly higher than any other point on the graph, it is clear that DRIVING_EXPERIENCE and AGE are highly correlated with each other. It is also interesting that half this graph does not even exist because it is impossible to be in the youngest age and have lots of driving experience.
 
 # Modeling 
 
@@ -289,6 +298,7 @@ table(test$OUTCOME)[1] / nrow(test)
 ```
 The proportions within each split is roughly equal in terms of the `OUTCOME` variable. 
 
+## Model 1
 ```{r}
 recipe_1 <- recipe(OUTCOME ~ .,
                    data = train)
@@ -323,7 +333,7 @@ print(confusion_mat)
 
 ```
 
-
+## Model 2
 ```{r}
 set.seed(1)
 parsnip_2 <- rand_forest(mtry = 15, trees = 30) |> 
@@ -351,7 +361,7 @@ confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values =
 print(confusion_mat)
 
 ```
-
+## Model 3
 ```{r}
 parsnip_3 <- svm_rbf() |>
   set_engine("kernlab") |>
@@ -378,7 +388,7 @@ print(confusion_mat)
 
 
 ```
-
+## Model 4
 ```{r}
 parsnip_4 <- boost_tree(trees = 10, learn_rate = 0.4,
                         tree_depth = 6) |>
@@ -405,7 +415,7 @@ confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values =
 print(confusion_mat)
 
 ```
-
+## Model 5
 ```{r}
 parsnip_5 <- nearest_neighbor(neighbors = 17) |>
   set_engine("kknn") |>
@@ -431,7 +441,7 @@ confusion_mat = as.matrix(table(Actual_Values = test$OUTCOME, Predicted_Values =
 print(confusion_mat)
 
 ```
-
+## Model Assessment 
 ```{r}
 workflow_names <- c("glm", 
                     "rf",
@@ -464,6 +474,8 @@ workflows_tbl <- tibble(work_names = workflow_names,
 
 
 ```
+
+Above we had already predicted how well each model did on test data.  Now we evaluate how we did by comparing the ROC curves, AUC scores, and accuracy scores to select the best model.
 
 ```{r}
 workflows_tbl |>
@@ -514,7 +526,7 @@ workflows_tbl |>
        x = "Accuracy",
        fill = "Model")
 ```
-
+## Model Selection
 
 Out of the 5 models chosen, we examined two criteria: AUC score and accuracy. We measured each of these criterion on a testing/holdout subset of the original dataset. Each model was trained on a separate training subset. In last place for both measures was our knn model. Our XGboost model performed second best in each criterion, while the model with the highest AUC was the GLM, and the model with the highest accuracy was the SVM. Because the difference in each measure between first and second place is so marginal, we conclude that XGboost performed best. 
 
@@ -529,11 +541,23 @@ According to our preferred model, `VEHICLE_OWNERSHIP` and `DRIVING_EXPERIENCE` w
 
 ## Conclusion
 
+The five add ons that we chose were
++ PCA
++ Impute missing values
++ Clean data with regular expression
++ Use a list column
++ Make a github repo
+
 To summarize, our goal was to predict whether or not a given customer would file an auto insurance claim. The insurance company has an interest in maximizing profits, so knowing which customers are more likely to file claims is quite valuable. 
 
-After cleaning the data, we were left with 18 predictors, most of which were categorical variables. We proceeded with modelling. On our chosen criteria, our XGBoost model performed the best with an accuracy of 85% on a holdout dataset. We then identified the features which were most important in the model's decision making process: `VEHICLE_OWNERSHIP` and `DRIVING_EXPERIENCE`.
+After cleaning the data, we were left with 18 predictors, most of which were categorical variables. Categorical variables can be difficult to visualize, so we tried our best using the jitter plots and looking at up to three dimensions of data before proceededing with modelling. On our chosen criteria, our XGBoost model performed the best with an accuracy of 85% on a holdout dataset. We then identified the features which were most important in the model's decision making process: `VEHICLE_OWNERSHIP` and `DRIVING_EXPERIENCE`.  This seems pretty reasonable based on what we know about car insurance claims.  If somebody does not own the car they are driving (They may rent it or lease it) they may not be likely to file a claim.  They may need to fill out more paperwork with whatever company they rented the car from, but not neccessarily file a claim.  Additionally `DRIVING_EXPERIENCE` was an important feature, possibly because newer drivers may not want to file a claim and have their insurance premiums dramatically increase.  If they think that they could afford to pay the damage out of pocket, they could choose to do so, and that drivers with much more experience may be more likely to file a claim.
 
-To improve the quality of our predictions, we are interested in more detailed data. For example, the `AGE` column had 4 categories. Effectively, it lumped several age groups together. A more detailed dataset might reveal a difference between a 16 year old driver and a 24 year old driver, whereas our dataset was blind to such distinction. A history of each driver would also be a benefit of a more detailed dataset. 
+To improve the quality of our predictions, we are interested in more detailed data. For example, the `AGE` column had 4 categories. Effectively, it lumped several age groups together. A more detailed dataset might reveal a difference between a 16 year old driver and a 24 year old driver, whereas our dataset was blind to such distinction. A history of each driver would also be a benefit of a more detailed dataset. Almost all the data being categorical dramatically reduced the effectiveness of it. When we started the project we didn't realize the data was structured like this until we started to dive into it and clean it.  For instance the variable VECHICLE_YEAR was originally a binary variable with two options "before 2015" or "after 2015".  If instead we had the precise year, this could have been a much more powerful variable that is predictive of OUTCOME.
+
+## Next Steps
+In the future we could try and find data relating to median income and education levels based on postal code and join it with future data sets.  The postal code column by itself is not very helpful, but if we had been able to learn more about each type postal code and if there are any major highways or windy roads that could potentially lead to increased chance of an accident, perhaps interesting insights could be obtained.  While we may need some domain knowledge of the postal codes available in the data in order to derive meaningful insights, joining the data set with another based on postal codes is still an interesting possibility to explore in the future.
+
+While we did some informal hyperparameter tuning by testing a handful of parameters and then choosing the best one, it may be possible to get better results with even more tuning via grid search. 
 
 
 
